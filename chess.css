@@ -1,0 +1,156 @@
+/* == Global reset == */
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg,#2c3e50,#34495e);
+    color:#ecf0f1;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:10px;
+}
+
+/* == Modal == */
+.modal {
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.8);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+}
+.modal-content {
+    background:#34495e;
+    padding:30px;
+    border-radius:15px;
+    max-width:600px;
+    max-height:80vh;
+    overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+.modal-content h2 { color:#f39c12; margin-bottom:20px; text-align:center; }
+.modal-content h3 { color:#3498db; margin:20px 0 10px; }
+
+.time-controls { display:grid; gap:15px; }
+.time-btn {
+    background:#3498db; color:#fff; border:none;
+    padding:12px 24px; margin:5px;
+    border-radius:8px; cursor:pointer;
+    font-weight:bold; transition:.3s;
+}
+.time-btn:hover { background:#2980b9; transform:translateY(-2px); }
+
+.custom-time { margin-top:20px; padding-top:20px; border-top:2px solid #7f8c8d; }
+.custom-inputs { display:flex; gap:15px; flex-wrap:wrap; align-items:center; }
+.custom-inputs label { font-weight:bold; }
+.custom-inputs input {
+    margin-left:8px; width:80px;
+    padding:8px; border-radius:5px; border:1px solid #7f8c8d;
+    background:#2c3e50; color:#ecf0f1;
+}
+#customTimeBtn {
+    background:#e74c3c; color:#fff; border:none;
+    padding:10px 20px; border-radius:8px; cursor:pointer;
+    font-weight:bold; transition:.3s;
+}
+#customTimeBtn:hover { background:#c0392b; }
+
+/* == Game container == */
+#gameContainer { width:100%; max-width:1200px; margin:0 auto; }
+
+/* Audio controls */
+.audio-controls {
+    display:flex; gap:15px; flex-wrap:wrap; justify-content:center;
+    background:rgba(0,0,0,.3);
+    padding:15px; border-radius:10px; margin-bottom:20px;
+}
+.audio-section { display:flex; align-items:center; gap:8px; font-weight:bold; }
+.audio-btn {
+    background:#27ae60; color:#fff; border:none;
+    padding:8px 12px; border-radius:5px; cursor:pointer;
+    transition:.3s;
+}
+.audio-btn:hover { background:#219a52; }
+.audio-btn.paused { background:#e74c3c; }
+.audio-btn.muted  { background:#95a5a6; }
+
+/* Timers */
+.timer-container {
+    display:flex; gap:30px; justify-content:center; align-items:center;
+    background:rgba(0,0,0,.3); padding:20px; border-radius:15px;
+}
+.timer {
+    display:flex; flex-direction:column; align-items:center;
+    padding:15px 25px; border-radius:10px;
+    background:rgba(255,255,255,.1); transition:.3s;
+}
+.timer.active {
+    background:#3498db; transform:scale(1.05);
+    box-shadow:0 0 20px rgba(52,152,219,.5);
+}
+.player-label { font-size:14px; font-weight:bold; }
+.time-display  { font:700 24px "Courier New",monospace; color:#f39c12; }
+.timer.active .time-display { color:#fff; }
+
+.game-controls { display:flex; flex-direction:column; gap:10px; }
+.game-controls button {
+    background:#95a5a6; color:#fff; border:none;
+    padding:10px 15px; border-radius:5px; cursor:pointer;
+    font-weight:bold; transition:.3s;
+}
+.game-controls button:hover { background:#7f8c8d; }
+
+/* Board + history layout */
+.game-layout { display:grid; grid-template-columns:1fr 300px; gap:20px; max-width:1000px; margin:0 auto; }
+.board-container { display:flex; flex-direction:column; align-items:center; }
+
+.chess-board {
+    display:grid; grid-template-columns:repeat(8,60px); grid-template-rows:repeat(8,60px);
+    border:3px solid #2c3e50; border-radius:8px; overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+.square { display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; transition:.2s; }
+.square.light { background:#f0d9b5; }
+.square.dark  { background:#b58863; }
+.square.valid-move { background:#a9dfbf!important; box-shadow:inset 0 0 0 2px #27ae60; }
+.square.valid-move::after {
+    content:""; position:absolute; width:20px; height:20px; border-radius:50%; background:#27ae60; opacity:.7;
+}
+
+.piece { font-size:40px; transition:.2s; user-select:none; }
+.piece:hover { transform:scale(1.1); }
+
+/* Game status */
+.game-status {
+    margin-top:20px; padding:15px;
+    background:rgba(0,0,0,.3); border-radius:8px;
+    font-size:18px; font-weight:bold; text-align:center; color:#f39c12;
+}
+
+/* Move history */
+.move-history-panel {
+    background:rgba(0,0,0,.3); padding:20px; border-radius:10px; height:fit-content;
+}
+.move-history-panel h3 { color:#f39c12; margin-bottom:15px; text-align:center; }
+.move-history { max-height:400px; overflow-y:auto; font-family:"Courier New",monospace; line-height:1.6; }
+.move-entry { padding:5px 8px; margin-bottom:3px; border-radius:4px; display:flex; justify-content:space-between; }
+.move-entry.white-move { background:rgba(255,255,255,.1); }
+.move-entry.black-move { background:rgba(0,0,0,.2); }
+.move-time { font-size:12px; color:#95a5a6; }
+
+/* Low-time warning */
+.timer.low-time .time-display { color:#e74c3c; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,50%{opacity:1;} 25%,75%{opacity:.5;} }
+
+/* Responsive tweaks */
+@media (max-width:768px){
+    .game-layout    { grid-template-columns:1fr; }
+    .chess-board    { grid-template-columns:repeat(8,45px); grid-template-rows:repeat(8,45px); }
+    .piece          { font-size:30px; }
+    .timer-container, .audio-controls { flex-direction:column; gap:15px; }
+}
+@media (max-width:480px){
+    .chess-board { grid-template-columns:repeat(8,35px); grid-template-rows:repeat(8,35px); }
+    .piece       { font-size:24px; }
+    .time-display{ font-size:20px; }
+}

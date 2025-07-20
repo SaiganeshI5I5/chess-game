@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced Chess Game</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <!-- Time-control modal -->
+    <div id="timeControlModal" class="modal">
+        <div class="modal-content">
+            <h2>Select Time Control</h2>
+
+            <div class="time-controls">
+                <h3>Bullet</h3>
+                <button class="time-btn" data-time="60"  data-increment="0">1+0</button>
+                <button class="time-btn" data-time="120" data-increment="1">2+1</button>
+
+                <h3>Blitz</h3>
+                <button class="time-btn" data-time="180" data-increment="2">3+2</button>
+                <button class="time-btn" data-time="300" data-increment="3">5+3</button>
+
+                <h3>Rapid</h3>
+                <button class="time-btn" data-time="600" data-increment="0">10+0</button>
+                <button class="time-btn" data-time="900" data-increment="10">15+10</button>
+
+                <h3>Classical</h3>
+                <button class="time-btn" data-time="1800" data-increment="0">30+0</button>
+                <button class="time-btn" data-time="5400" data-increment="30">90+30</button>
+            </div>
+
+            <div class="custom-time">
+                <h3>Custom Time Control</h3>
+                <div class="custom-inputs">
+                    <label>Minutes:
+                        <input type="number" id="customMinutes" min="1" max="180" value="10" />
+                    </label>
+                    <label>Increment:
+                        <input type="number" id="customIncrement" min="0" max="30" value="0" />
+                    </label>
+                    <button id="customTimeBtn">Use Custom</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game area -->
+    <div id="gameContainer" style="display:none;">
+        <!-- Audio controls -->
+        <div class="audio-controls">
+            <div class="audio-section">
+                <label>Music:
+                    <button id="musicToggle" class="audio-btn">▶ Play</button>
+                    <input type="range" id="musicVolume" min="0" max="100" value="50" />
+                </label>
+            </div>
+            <div class="audio-section">
+                <label>Effects:
+                    <button id="effectsToggle" class="audio-btn">🔊 On</button>
+                </label>
+            </div>
+            <div class="audio-section">
+                <label>Master Volume:
+                    <input type="range" id="masterVolume" min="0" max="100" value="70" />
+                </label>
+            </div>
+        </div>
+
+        <!-- Timers -->
+        <div class="timer-container">
+            <div class="timer black-timer">
+                <span class="player-label">Black</span>
+                <span id="blackTime" class="time-display">10:00</span>
+            </div>
+            <div class="game-controls">
+                <button id="pauseBtn">⏸ Pause</button>
+                <button id="resetBtn">🔄 New Game</button>
+            </div>
+            <div class="timer white-timer active">
+                <span class="player-label">White</span>
+                <span id="whiteTime" class="time-display">10:00</span>
+            </div>
+        </div>
+
+        <!-- Board + move history -->
+        <div class="game-layout">
+            <div class="board-container">
+                <div id="chessBoard" class="chess-board"></div>
+                <div id="gameStatus" class="game-status">White to move</div>
+            </div>
+            <div class="move-history-panel">
+                <h3>Move History</h3>
+                <div id="moveHistory" class="move-history"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
