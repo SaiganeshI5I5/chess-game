@@ -1,11 +1,11 @@
-/* ===== Enhanced Chess Game with Complete Functionality ===== */
+/* ===== Enhanced Chess Game - FIXED VERSION ===== */
 
 // Global game state
 const board = [];
 const moveHistory = [];
 let selectedSquare = null;
 let currentPlayer = "white";
-let gameActive = false;
+let gameActive = false; // This was the main issue!
 
 // Timer state
 let whiteTime = 600;
@@ -13,7 +13,6 @@ let blackTime = 600;
 let increment = 0;
 let timerInterval = null;
 let moveStartTime = 0;
-let currentMoveTime = 0;
 
 // Audio elements
 let backgroundMusic = null;
@@ -40,15 +39,20 @@ const initialBoard = [
 
 /* ===== Board Management ===== */
 function initBoard() {
-    // Copy initial board state
     board.length = 0;
     for (let i = 0; i < 8; i++) {
         board[i] = [...initialBoard[i]];
     }
+    console.log("Board initialized"); // Debug logging
 }
 
 function renderBoard() {
     const boardElement = document.getElementById('chessBoard');
+    if (!boardElement) {
+        console.error("Board element not found!");
+        return;
+    }
+    
     boardElement.innerHTML = '';
     
     for (let row = 0; row < 8; row++) {
@@ -66,57 +70,76 @@ function renderBoard() {
                 square.appendChild(pieceElement);
             }
             
+            // FIXED: Ensure event listener is properly attached
             square.addEventListener('click', handleSquareClick);
             boardElement.appendChild(square);
         }
     }
+    console.log("Board rendered with event listeners"); // Debug logging
 }
 
-/* ===== Move Logic ===== */
+/* ===== FIXED Move Logic ===== */
 function handleSquareClick(event) {
-    if (!gameActive) return;
-    
-    const row = parseInt(event.currentTarget.dataset.row);
-    const col = parseInt(event.currentTarget.dataset.col);
-    const clickedPiece = board[row][col];
-    
-    // If no piece is selected
-    if (!selectedSquare) {
-        // Select piece if it belongs to current player
+    // FIXED: Add comprehensive error handling and logging
+    try {
+        console.log("Square clicked!", event.currentTarget.dataset); // Debug
+        
+        if (!gameActive) {
+            console.log("Game not active, ignoring click");
+            return;
+        }
+        
+        const row = parseInt(event.currentTarget.dataset.row);
+        const col = parseInt(event.currentTarget.dataset.col);
+        const clickedPiece = board[row][col];
+        
+        console.log(`Clicked square: ${row},${col}`, clickedPiece); // Debug
+        
+        // If no piece is selected
+        if (!selectedSquare) {
+            if (clickedPiece && clickedPiece.color === currentPlayer) {
+                selectedSquare = { row, col };
+                console.log("Piece selected:", selectedSquare); // Debug
+                highlightSquare(row, col, 'selected');
+                showValidMoves(row, col);
+            } else {
+                console.log("No valid piece to select");
+            }
+            return;
+        }
+        
+        // If clicking the same square, deselect
+        if (selectedSquare.row === row && selectedSquare.col === col) {
+            console.log("Deselecting piece");
+            clearHighlights();
+            selectedSquare = null;
+            return;
+        }
+        
+        // If selecting a different piece of same color
         if (clickedPiece && clickedPiece.color === currentPlayer) {
+            console.log("Selecting different piece");
+            clearHighlights();
             selectedSquare = { row, col };
             highlightSquare(row, col, 'selected');
             showValidMoves(row, col);
+            return;
         }
-        return;
-    }
-    
-    // If clicking the same square, deselect
-    if (selectedSquare.row === row && selectedSquare.col === col) {
-        clearHighlights();
-        selectedSquare = null;
-        return;
-    }
-    
-    // If selecting a different piece of same color
-    if (clickedPiece && clickedPiece.color === currentPlayer) {
-        clearHighlights();
-        selectedSquare = { row, col };
-        highlightSquare(row, col, 'selected');
-        showValidMoves(row, col);
-        return;
-    }
-    
-    // Try to make a move
-    if (isValidMove(selectedSquare.row, selectedSquare.col, row, col)) {
-        makeMove(selectedSquare.row, selectedSquare.col, row, col);
-        clearHighlights();
-        selectedSquare = null;
-        endTurn();
-    } else {
-        // Invalid move - just clear highlights
-        clearHighlights();
-        selectedSquare = null;
+        
+        // Try to make a move
+        if (isValidMove(selectedSquare.row, selectedSquare.col, row, col)) {
+            console.log("Making move");
+            makeMove(selectedSquare.row, selectedSquare.col, row, col);
+            clearHighlights();
+            selectedSquare = null;
+            endTurn();
+        } else {
+            console.log("Invalid move attempted");
+            clearHighlights();
+            selectedSquare = null;
+        }
+    } catch (error) {
+        console.error("Error in handleSquareClick:", error);
     }
 }
 
@@ -133,22 +156,18 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
     switch (piece.type) {
         case 'P': // Pawn
             if (piece.color === 'white') {
-                // Move forward
                 if (colDiff === 0 && !targetPiece) {
                     if (rowDiff === -1) return true;
                     if (rowDiff === -2 && fromRow === 6) return true;
                 }
-                // Capture diagonally
                 if (Math.abs(colDiff) === 1 && rowDiff === -1 && targetPiece) {
                     return true;
                 }
             } else {
-                // Move forward
                 if (colDiff === 0 && !targetPiece) {
                     if (rowDiff === 1) return true;
                     if (rowDiff === 2 && fromRow === 1) return true;
                 }
-                // Capture diagonally
                 if (Math.abs(colDiff) === 1 && rowDiff === 1 && targetPiece) {
                     return true;
                 }
@@ -231,10 +250,7 @@ function makeMove(fromRow, fromCol, toRow, toCol) {
         playMoveSound();
     }
     
-    // Check for check/checkmate would go here
-    // For now, just check basic win conditions
-    
-    renderBoard();
+    renderBoard(); // FIXED: Make sure board re-renders
     updateMoveHistory();
 }
 
@@ -385,7 +401,9 @@ function resetGame() {
 /* ===== Game Status ===== */
 function updateGameStatus() {
     const statusElement = document.getElementById('gameStatus');
-    statusElement.textContent = `${currentPlayer === 'white' ? '♔ White' : '♛ Black'} to move`;
+    if (statusElement) {
+        statusElement.textContent = `${currentPlayer === 'white' ? '♔ White' : '♛ Black'} to move`;
+    }
 }
 
 function endGame(message) {
@@ -394,13 +412,18 @@ function endGame(message) {
         clearInterval(timerInterval);
     }
     
-    document.getElementById('gameStatus').textContent = message;
+    const statusElement = document.getElementById('gameStatus');
+    if (statusElement) {
+        statusElement.textContent = message;
+    }
     alert(message);
 }
 
 /* ===== Move History ===== */
 function updateMoveHistory() {
     const historyElement = document.getElementById('moveHistory');
+    if (!historyElement) return;
+    
     historyElement.innerHTML = '';
     
     if (moveHistory.length === 0) {
@@ -425,50 +448,55 @@ function updateMoveHistory() {
 
 /* ===== Audio System ===== */
 function initAudioSystem() {
-    // Create audio context for web audio effects
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
         console.log('Web Audio API not supported');
     }
     
-    // Initialize background music
     backgroundMusic = new Audio('audio/background-music.mp3');
     backgroundMusic.loop = true;
     backgroundMusic.volume = 0.4;
     
-    // Audio controls
     const musicToggle = document.getElementById('musicToggle');
     const musicVolume = document.getElementById('musicVolume');
     const effectsToggle = document.getElementById('effectsToggle');
     const masterVolume = document.getElementById('masterVolume');
     
-    musicToggle.addEventListener('click', () => {
-        if (backgroundMusic.paused) {
-            backgroundMusic.play().catch(e => console.log('Music play failed:', e));
-            musicToggle.textContent = '⏸️ Pause';
-            musicToggle.classList.remove('paused');
-        } else {
-            backgroundMusic.pause();
-            musicToggle.textContent = '▶️ Play';
-            musicToggle.classList.add('paused');
-        }
-    });
+    if (musicToggle) {
+        musicToggle.addEventListener('click', () => {
+            if (backgroundMusic.paused) {
+                backgroundMusic.play().catch(e => console.log('Music play failed:', e));
+                musicToggle.textContent = '⏸️ Pause';
+                musicToggle.classList.remove('paused');
+            } else {
+                backgroundMusic.pause();
+                musicToggle.textContent = '▶️ Play';
+                musicToggle.classList.add('paused');
+            }
+        });
+    }
     
-    musicVolume.addEventListener('input', () => {
-        backgroundMusic.volume = musicVolume.value / 100 * (masterVolume.value / 100);
-    });
+    if (musicVolume) {
+        musicVolume.addEventListener('input', () => {
+            backgroundMusic.volume = musicVolume.value / 100 * (masterVolume.value / 100);
+        });
+    }
     
-    effectsToggle.addEventListener('click', () => {
-        effectsMuted = !effectsMuted;
-        effectsToggle.textContent = effectsMuted ? '🔇 Off' : '🔊 On';
-        effectsToggle.classList.toggle('muted', effectsMuted);
-    });
+    if (effectsToggle) {
+        effectsToggle.addEventListener('click', () => {
+            effectsMuted = !effectsMuted;
+            effectsToggle.textContent = effectsMuted ? '🔇 Off' : '🔊 On';
+            effectsToggle.classList.toggle('muted', effectsMuted);
+        });
+    }
     
-    masterVolume.addEventListener('input', () => {
-        const masterLevel = masterVolume.value / 100;
-        backgroundMusic.volume = (musicVolume.value / 100) * masterLevel;
-    });
+    if (masterVolume) {
+        masterVolume.addEventListener('input', () => {
+            const masterLevel = masterVolume.value / 100;
+            backgroundMusic.volume = (musicVolume.value / 100) * masterLevel;
+        });
+    }
 }
 
 function playMoveSound() {
@@ -514,28 +542,40 @@ function playCaptureSound() {
     }
 }
 
-/* ===== Game Initialization ===== */
+/* ===== FIXED Game Initialization ===== */
 function initGame() {
+    console.log("Initializing game..."); // Debug
+    
     initBoard();
     renderBoard();
     initAudioSystem();
     updateGameStatus();
     updateTimerHighlights();
     
-    // Control buttons
-    document.getElementById('pauseBtn').addEventListener('click', pauseGame);
-    document.getElementById('resetBtn').addEventListener('click', resetGame);
-    
+    // CRITICAL FIX: Set game as active!
     gameActive = true;
+    console.log("Game is now active and ready for moves!"); // Debug
+    
+    // Control buttons
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    if (pauseBtn) pauseBtn.addEventListener('click', pauseGame);
+    if (resetBtn) resetBtn.addEventListener('click', resetGame);
 }
 
-/* ===== Event Listeners ===== */
+/* ===== FIXED Event Listeners ===== */
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded, setting up game..."); // Debug
+    
     // Start game button
-    document.getElementById('startGameBtn').addEventListener('click', () => {
-        document.getElementById('welcomeScreen').style.display = 'none';
-        document.getElementById('timeControlModal').style.display = 'flex';
-    });
+    const startBtn = document.getElementById('startGameBtn');
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('timeControlModal').style.display = 'flex';
+        });
+    }
     
     // Time control buttons
     document.querySelectorAll('.time-btn').forEach(button => {
@@ -546,21 +586,32 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('timeControlModal').style.display = 'none';
             document.getElementById('gameContainer').style.display = 'block';
             
-            initGame();
-            startTimer(timeSeconds, incrementSeconds);
+            // CRITICAL: Initialize game BEFORE starting timer
+            setTimeout(() => {
+                initGame();
+                startTimer(timeSeconds, incrementSeconds);
+                console.log("Game fully initialized and timer started!"); // Debug
+            }, 100); // Small delay to ensure DOM is ready
         });
     });
     
     // Custom time control
-    document.getElementById('customTimeBtn').addEventListener('click', () => {
-        const minutes = parseInt(document.getElementById('customMinutes').value);
-        const incrementSeconds = parseInt(document.getElementById('customIncrement').value);
-        const timeSeconds = minutes * 60;
-        
-        document.getElementById('timeControlModal').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'block';
-        
-        initGame();
-        startTimer(timeSeconds, incrementSeconds);
-    });
+    const customBtn = document.getElementById('customTimeBtn');
+    if (customBtn) {
+        customBtn.addEventListener('click', () => {
+            const minutes = parseInt(document.getElementById('customMinutes').value);
+            const incrementSeconds = parseInt(document.getElementById('customIncrement').value);
+            const timeSeconds = minutes * 60;
+            
+            document.getElementById('timeControlModal').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            // CRITICAL: Initialize game BEFORE starting timer
+            setTimeout(() => {
+                initGame();
+                startTimer(timeSeconds, incrementSeconds);
+                console.log("Custom game fully initialized!"); // Debug
+            }, 100);
+        });
+    }
 });
