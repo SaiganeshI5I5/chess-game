@@ -1,266 +1,566 @@
-/* ===== Enhanced Chess Game with Timer & Music ===== */
+/* ===== Enhanced Chess Game with Complete Functionality ===== */
 
-/* ---------- Board state ---------- */
-const board = [];        // 8×8 array of {type,color}
-const moveHistory = [];  // [{moveText,timeSpent,player}]
-let selectedPiece = null;
-let currentPlayer  = "white";
-let gameStatusText;
+// Global game state
+const board = [];
+const moveHistory = [];
+let selectedSquare = null;
+let currentPlayer = "white";
+let gameActive = false;
 
-/* Unicode piece symbols */
-const symbols = {
-  white: {K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙"},
-  black: {K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟"}
-};
+// Timer state
+let whiteTime = 600;
+let blackTime = 600;
+let increment = 0;
+let timerInterval = null;
+let moveStartTime = 0;
+let currentMoveTime = 0;
 
-/* ---------- Board setup / rendering ---------- */
-function initBoardArray(){
-  board.length = 0;
-  for(let r=0;r<8;r++) board.push(new Array(8).fill(null));
-  const back = ["R","N","B","Q","K","B","N","R"];
-  for(let c=0;c<8;c++){
-    board[7][c] = {type:back[c], color:"white"};
-    board[6][c] = {type:"P",       color:"white"};
-    board[1][c] = {type:"P",       color:"black"};
-    board[0][c] = {type:back[c],   color:"black"};
-  }
-}
-
-function renderBoard(){
-  const boardEl = document.getElementById("chessBoard");
-  boardEl.innerHTML = "";
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const sq = document.createElement("div");
-      sq.className = "square " + ((r+c)%2===0?"light":"dark");
-      sq.dataset.row = r; sq.dataset.col = c;
-      const piece = board[r][c];
-      if(piece){
-        const span = document.createElement("span");
-        span.className = "piece";
-        span.textContent = symbols[piece.color][piece.type];
-        sq.appendChild(span);
-      }
-      sq.addEventListener("click", onSquareClick);
-      boardEl.appendChild(sq);
-    }
-  }
-}
-
-/* ---------- Move handling ---------- */
-function onSquareClick(e){
-  const row = +e.currentTarget.dataset.row;
-  const col = +e.currentTarget.dataset.col;
-  const clicked = board[row][col];
-
-  if(selectedPiece){
-    if(isValidMove(selectedPiece, {row,col})){
-      movePiece(selectedPiece, {row,col});
-      endTurn();
-    }
-    clearHighlights();
-    selectedPiece = null;
-  } else {
-    if(clicked && clicked.color === currentPlayer){
-      selectedPiece = {row,col,piece:clicked};
-      highlightValidMoves(selectedPiece);
-    }
-  }
-}
-
-function isValidMove(from, to){
-  const p = from.piece, dr = to.row - from.row, dc = to.col - from.col;
-
-  switch(p.type){
-    case "P":
-      if(p.color==="white"){
-        if(dr===-1 && dc===0 && !board[to.row][to.col]) return true;
-        if(from.row===6 && dr===-2 && dc===0 && !board[5][to.col] && !board[4][to.col]) return true;
-        if(dr===-1 && Math.abs(dc)===1 && board[to.row][to.col] && board[to.row][to.col].color==="black") return true;
-      } else {
-        if(dr===1 && dc===0 && !board[to.row][to.col]) return true;
-        if(from.row===1 && dr===2 && dc===0 && !board[2][to.col] && !board[3][to.col]) return true;
-        if(dr===1 && Math.abs(dc)===1 && board[to.row][to.col] && board[to.row][to.col].color==="white") return true;
-      }
-      break;
-    case "R": if(dr===0||dc===0) return clearPath(from,to); break;
-    case "B": if(Math.abs(dr)===Math.abs(dc)) return clearPath(from,to); break;
-    case "Q": if(dr===0||dc===0||Math.abs(dr)===Math.abs(dc)) return clearPath(from,to); break;
-    case "N": if((Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2)) return true; break;
-    case "K": if(Math.abs(dr)<=1&&Math.abs(dc)<=1) return true; break;
-  }
-  return false;
-}
-function clearPath(from,to){
-  const rs = Math.sign(to.row-from.row), cs = Math.sign(to.col-from.col);
-  let r = from.row+rs, c = from.col+cs;
-  while(r!==to.row || c!==to.col){
-    if(board[r][c]) return false;
-    r+=rs; c+=cs;
-  }
-  return true;
-}
-
-function movePiece(from,to){
-  board[to.row][to.col]   = from.piece;
-  board[from.row][from.col]=null;
-  addMoveToHistory(from,to);
-  renderBoard();
-}
-
-function highlightValidMoves(sel){
-  document.querySelectorAll(".square").forEach(sq=>{
-    const r=+sq.dataset.row, c=+sq.dataset.col;
-    if(isValidMove(sel,{row:r,col:c})) sq.classList.add("valid-move");
-  });
-}
-function clearHighlights(){ document.querySelectorAll(".valid-move").forEach(el=>el.classList.remove("valid-move")); }
-
-/* ---------- Move history ---------- */
-function addMoveToHistory(from,to){
-  const text = `${symbols[currentPlayer][from.piece.type]} ${String.fromCharCode(97+from.col)}${8-from.row}→${String.fromCharCode(97+to.col)}${8-to.row}`;
-  const spent = currentPlayer==="white"?whiteMoveTime:blackMoveTime;
-  moveHistory.push({moveText:text,timeSpent:spent,player:currentPlayer});
-  renderMoveHistory();
-}
-function renderMoveHistory(){
-  const el = document.getElementById("moveHistory");
-  el.innerHTML="";
-  moveHistory.forEach((m,i)=>{
-    const div=document.createElement("div");
-    div.className=`move-entry ${m.player}-move`;
-    div.innerHTML=`<span class="move-text">${i+1}. ${m.moveText}</span><span class="move-time">(${formatTime(m.timeSpent)})</span>`;
-    el.appendChild(div);
-  });
-  el.scrollTop = el.scrollHeight;
-}
-
-/* ---------- Timers ---------- */
-let whiteTime=600, blackTime=600, increment=0, activeTimer=null;
-let whiteMoveTime=0, blackMoveTime=0, moveStart=0;
-
-function startTimers(base,inc){
-  whiteTime=blackTime=base; increment=inc;
-  updateTimerDisplays(); currentPlayer="white";
-  moveStart=Date.now(); highlightActiveTimer();
-  if(activeTimer) clearInterval(activeTimer);
-  activeTimer=setInterval(()=>{
-    const now=Date.now(), elapsed=Math.floor((now-moveStart)/1000);
-    if(currentPlayer==="white"){ whiteMoveTime=elapsed; updateWhiteDisplay(); }
-    else                        { blackMoveTime=elapsed; updateBlackDisplay(); }
-  },200);
-}
-
-function endTurn(){
-  const now=Date.now(), elapsed=Math.floor((now-moveStart)/1000);
-  if(currentPlayer==="white"){
-    whiteTime-=elapsed; whiteTime+=increment; whiteMoveTime=elapsed;
-    if(whiteTime<=0) return gameOver("Black wins on time!");
-    currentPlayer="black";
-  }else{
-    blackTime-=elapsed; blackTime+=increment; blackMoveTime=elapsed;
-    if(blackTime<=0) return gameOver("White wins on time!");
-    currentPlayer="white";
-  }
-  moveStart=Date.now(); whiteMoveTime=blackMoveTime=0;
-  updateTimerDisplays(); highlightActiveTimer();
-  gameStatusText.textContent=`${capitalize(currentPlayer)} to move`;
-}
-
-function updateTimerDisplays(){ updateWhiteDisplay(); updateBlackDisplay(); }
-function updateWhiteDisplay(){
-  const el=document.getElementById("whiteTime");
-  el.textContent=formatTime(whiteTime-whiteMoveTime);
-  toggleLowTime(el.parentElement, whiteTime-whiteMoveTime);
-}
-function updateBlackDisplay(){
-  const el=document.getElementById("blackTime");
-  el.textContent=formatTime(blackTime-blackMoveTime);
-  toggleLowTime(el.parentElement, blackTime-blackMoveTime);
-}
-function toggleLowTime(timerEl,remain){
-  timerEl.classList.toggle("low-time",remain<=30);
-}
-function highlightActiveTimer(){
-  document.querySelector(".white-timer").classList.toggle("active",currentPlayer==="white");
-  document.querySelector(".black-timer").classList.toggle("active",currentPlayer==="black");
-}
-function formatTime(s){
-  const m=Math.floor(s/60).toString().padStart(2,"0");
-  const t=Math.max(0,s%60).toString().padStart(2,"0");
-  return `${m}:${t}`;
-}
-function pauseGame(){ if(activeTimer){clearInterval(activeTimer); activeTimer=null;}else resumeGame(); }
-function resumeGame(){
-  moveStart=Date.now();
-  activeTimer=setInterval(()=>{ endTurn(); },1000);
-}
-function resetGame(){ location.reload(); }
-function gameOver(msg){ if(activeTimer) clearInterval(activeTimer); alert(msg); }
-function capitalize(s){ return s[0].toUpperCase()+s.slice(1); }
-
-/* ---------- Audio ---------- */
-const musicAudio   = new Audio("audio/background-music.mp3");
-const moveSound    = new Audio("audio/move-sound.mp3");
-const captureSound = new Audio("audio/capture-sound.mp3");
-const checkSound   = new Audio("audio/check-sound.mp3");
-const mateSound    = new Audio("audio/checkmate-sound.mp3");
+// Audio elements
+let backgroundMusic = null;
+let audioContext = null;
 let effectsMuted = false;
 
-function initAudio(){
-  const musicToggle  = document.getElementById("musicToggle");
-  const musicVolume  = document.getElementById("musicVolume");
-  const effectsToggle= document.getElementById("effectsToggle");
-  const masterVolume = document.getElementById("masterVolume");
+// Chess piece symbols
+const pieceSymbols = {
+    white: { K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙" },
+    black: { K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟" }
+};
 
-  musicToggle.onclick = ()=>{
-    if(musicAudio.paused){
-      musicAudio.volume = musicVolume.value/100;
-      musicAudio.loop=true; musicAudio.play();
-      musicToggle.textContent="⏸ Pause"; musicToggle.classList.remove("paused");
-    }else{
-      musicAudio.pause(); musicToggle.textContent="▶ Play"; musicToggle.classList.add("paused");
+// Initial board setup
+const initialBoard = [
+    [{type:'R',color:'black'},{type:'N',color:'black'},{type:'B',color:'black'},{type:'Q',color:'black'},{type:'K',color:'black'},{type:'B',color:'black'},{type:'N',color:'black'},{type:'R',color:'black'}],
+    [{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'},{type:'P',color:'black'}],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'},{type:'P',color:'white'}],
+    [{type:'R',color:'white'},{type:'N',color:'white'},{type:'B',color:'white'},{type:'Q',color:'white'},{type:'K',color:'white'},{type:'B',color:'white'},{type:'N',color:'white'},{type:'R',color:'white'}]
+];
+
+/* ===== Board Management ===== */
+function initBoard() {
+    // Copy initial board state
+    board.length = 0;
+    for (let i = 0; i < 8; i++) {
+        board[i] = [...initialBoard[i]];
     }
-  };
-  musicVolume.oninput = ()=>{ musicAudio.volume = musicVolume.value/100; };
-  effectsToggle.onclick = ()=>{
-    effectsMuted=!effectsMuted;
-    effectsToggle.textContent = effectsMuted?"🔇 Off":"🔊 On";
-    effectsToggle.classList.toggle("muted",effectsMuted);
-  };
-  masterVolume.oninput = ()=>{
-    const v = masterVolume.value/100;
-    musicAudio.volume = v;
-    [moveSound,captureSound,checkSound,mateSound].forEach(a=>a.volume=v);
-  };
 }
-function playMoveSound(){ if(!effectsMuted) moveSound.play(); }
-function playCaptureSound(){ if(!effectsMuted) captureSound.play(); }
-function playCheckSound(){ if(!effectsMuted) checkSound.play(); }
-function playMateSound(){ if(!effectsMuted) mateSound.play(); }
 
-/* ---------- Init ---------- */
-window.addEventListener("DOMContentLoaded",()=>{
-  gameStatusText = document.getElementById("gameStatus");
-  initBoardArray(); renderBoard(); initAudio();
+function renderBoard() {
+    const boardElement = document.getElementById('chessBoard');
+    boardElement.innerHTML = '';
+    
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const square = document.createElement('div');
+            square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+            square.dataset.row = row;
+            square.dataset.col = col;
+            
+            const piece = board[row][col];
+            if (piece) {
+                const pieceElement = document.createElement('span');
+                pieceElement.className = 'piece';
+                pieceElement.textContent = pieceSymbols[piece.color][piece.type];
+                square.appendChild(pieceElement);
+            }
+            
+            square.addEventListener('click', handleSquareClick);
+            boardElement.appendChild(square);
+        }
+    }
+}
 
-  const modal = document.getElementById("timeControlModal");
-  const container = document.getElementById("gameContainer");
+/* ===== Move Logic ===== */
+function handleSquareClick(event) {
+    if (!gameActive) return;
+    
+    const row = parseInt(event.currentTarget.dataset.row);
+    const col = parseInt(event.currentTarget.dataset.col);
+    const clickedPiece = board[row][col];
+    
+    // If no piece is selected
+    if (!selectedSquare) {
+        // Select piece if it belongs to current player
+        if (clickedPiece && clickedPiece.color === currentPlayer) {
+            selectedSquare = { row, col };
+            highlightSquare(row, col, 'selected');
+            showValidMoves(row, col);
+        }
+        return;
+    }
+    
+    // If clicking the same square, deselect
+    if (selectedSquare.row === row && selectedSquare.col === col) {
+        clearHighlights();
+        selectedSquare = null;
+        return;
+    }
+    
+    // If selecting a different piece of same color
+    if (clickedPiece && clickedPiece.color === currentPlayer) {
+        clearHighlights();
+        selectedSquare = { row, col };
+        highlightSquare(row, col, 'selected');
+        showValidMoves(row, col);
+        return;
+    }
+    
+    // Try to make a move
+    if (isValidMove(selectedSquare.row, selectedSquare.col, row, col)) {
+        makeMove(selectedSquare.row, selectedSquare.col, row, col);
+        clearHighlights();
+        selectedSquare = null;
+        endTurn();
+    } else {
+        // Invalid move - just clear highlights
+        clearHighlights();
+        selectedSquare = null;
+    }
+}
 
-  document.querySelectorAll(".time-btn").forEach(btn=>{
-    btn.onclick = ()=>{
-      const base=+btn.dataset.time, inc=+btn.dataset.increment;
-      modal.style.display="none"; container.style.display="block";
-      startTimers(base,inc);
-    };
-  });
-  document.getElementById("customTimeBtn").onclick = ()=>{
-    const base=+document.getElementById("customMinutes").value*60;
-    const inc =+document.getElementById("customIncrement").value;
-    modal.style.display="none"; container.style.display="block";
-    startTimers(base,inc);
-  };
+function isValidMove(fromRow, fromCol, toRow, toCol) {
+    const piece = board[fromRow][fromCol];
+    if (!piece) return false;
+    
+    const targetPiece = board[toRow][toCol];
+    if (targetPiece && targetPiece.color === piece.color) return false;
+    
+    const rowDiff = toRow - fromRow;
+    const colDiff = toCol - fromCol;
+    
+    switch (piece.type) {
+        case 'P': // Pawn
+            if (piece.color === 'white') {
+                // Move forward
+                if (colDiff === 0 && !targetPiece) {
+                    if (rowDiff === -1) return true;
+                    if (rowDiff === -2 && fromRow === 6) return true;
+                }
+                // Capture diagonally
+                if (Math.abs(colDiff) === 1 && rowDiff === -1 && targetPiece) {
+                    return true;
+                }
+            } else {
+                // Move forward
+                if (colDiff === 0 && !targetPiece) {
+                    if (rowDiff === 1) return true;
+                    if (rowDiff === 2 && fromRow === 1) return true;
+                }
+                // Capture diagonally
+                if (Math.abs(colDiff) === 1 && rowDiff === 1 && targetPiece) {
+                    return true;
+                }
+            }
+            break;
+            
+        case 'R': // Rook
+            if (rowDiff === 0 || colDiff === 0) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+            break;
+            
+        case 'N': // Knight
+            if ((Math.abs(rowDiff) === 2 && Math.abs(colDiff) === 1) ||
+                (Math.abs(rowDiff) === 1 && Math.abs(colDiff) === 2)) {
+                return true;
+            }
+            break;
+            
+        case 'B': // Bishop
+            if (Math.abs(rowDiff) === Math.abs(colDiff)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+            break;
+            
+        case 'Q': // Queen
+            if (rowDiff === 0 || colDiff === 0 || Math.abs(rowDiff) === Math.abs(colDiff)) {
+                return isPathClear(fromRow, fromCol, toRow, toCol);
+            }
+            break;
+            
+        case 'K': // King
+            if (Math.abs(rowDiff) <= 1 && Math.abs(colDiff) <= 1) {
+                return true;
+            }
+            break;
+    }
+    
+    return false;
+}
 
-  document.getElementById("pauseBtn").onclick = pauseGame;
-  document.getElementById("resetBtn").onclick = resetGame;
+function isPathClear(fromRow, fromCol, toRow, toCol) {
+    const rowStep = Math.sign(toRow - fromRow);
+    const colStep = Math.sign(toCol - fromCol);
+    
+    let currentRow = fromRow + rowStep;
+    let currentCol = fromCol + colStep;
+    
+    while (currentRow !== toRow || currentCol !== toCol) {
+        if (board[currentRow][currentCol]) return false;
+        currentRow += rowStep;
+        currentCol += colStep;
+    }
+    
+    return true;
+}
+
+function makeMove(fromRow, fromCol, toRow, toCol) {
+    const piece = board[fromRow][fromCol];
+    const capturedPiece = board[toRow][toCol];
+    
+    // Make the move
+    board[toRow][toCol] = piece;
+    board[fromRow][fromCol] = null;
+    
+    // Record move in history
+    const moveText = generateMoveNotation(piece, fromRow, fromCol, toRow, toCol, capturedPiece);
+    const timeSpent = Math.floor((Date.now() - moveStartTime) / 1000);
+    
+    moveHistory.push({
+        player: currentPlayer,
+        moveText: moveText,
+        timeSpent: timeSpent
+    });
+    
+    // Play sound effects
+    if (capturedPiece) {
+        playCaptureSound();
+    } else {
+        playMoveSound();
+    }
+    
+    // Check for check/checkmate would go here
+    // For now, just check basic win conditions
+    
+    renderBoard();
+    updateMoveHistory();
+}
+
+function generateMoveNotation(piece, fromRow, fromCol, toRow, toCol, captured) {
+    const files = 'abcdefgh';
+    const ranks = '87654321';
+    
+    const fromSquare = files[fromCol] + ranks[fromRow];
+    const toSquare = files[toCol] + ranks[toRow];
+    
+    if (captured) {
+        return `${pieceSymbols[piece.color][piece.type]}${fromSquare}×${toSquare}`;
+    } else {
+        return `${pieceSymbols[piece.color][piece.type]}${fromSquare}-${toSquare}`;
+    }
+}
+
+function showValidMoves(row, col) {
+    for (let toRow = 0; toRow < 8; toRow++) {
+        for (let toCol = 0; toCol < 8; toCol++) {
+            if (isValidMove(row, col, toRow, toCol)) {
+                const targetPiece = board[toRow][toCol];
+                if (targetPiece) {
+                    highlightSquare(toRow, toCol, 'capture-move');
+                } else {
+                    highlightSquare(toRow, toCol, 'valid-move');
+                }
+            }
+        }
+    }
+}
+
+function highlightSquare(row, col, className) {
+    const square = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+    if (square) {
+        square.classList.add(className);
+    }
+}
+
+function clearHighlights() {
+    document.querySelectorAll('.square').forEach(square => {
+        square.classList.remove('selected', 'valid-move', 'capture-move');
+    });
+}
+
+/* ===== Timer Management ===== */
+function startTimer(baseTimeSeconds, incrementSeconds) {
+    whiteTime = baseTimeSeconds;
+    blackTime = baseTimeSeconds;
+    increment = incrementSeconds;
+    
+    updateTimerDisplays();
+    startMoveTimer();
+    
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - moveStartTime) / 1000);
+        
+        if (currentPlayer === 'white') {
+            const remaining = Math.max(0, whiteTime - elapsed);
+            document.getElementById('whiteTime').textContent = formatTime(remaining);
+            checkLowTime('white', remaining);
+        } else {
+            const remaining = Math.max(0, blackTime - elapsed);
+            document.getElementById('blackTime').textContent = formatTime(remaining);
+            checkLowTime('black', remaining);
+        }
+    }, 100);
+}
+
+function endTurn() {
+    const timeSpent = Math.floor((Date.now() - moveStartTime) / 1000);
+    
+    if (currentPlayer === 'white') {
+        whiteTime = Math.max(0, whiteTime - timeSpent + increment);
+        if (whiteTime <= 0) {
+            endGame('Black wins on time!');
+            return;
+        }
+        currentPlayer = 'black';
+    } else {
+        blackTime = Math.max(0, blackTime - timeSpent + increment);
+        if (blackTime <= 0) {
+            endGame('White wins on time!');
+            return;
+        }
+        currentPlayer = 'white';
+    }
+    
+    updateGameStatus();
+    updateTimerHighlights();
+    startMoveTimer();
+}
+
+function startMoveTimer() {
+    moveStartTime = Date.now();
+}
+
+function updateTimerDisplays() {
+    document.getElementById('whiteTime').textContent = formatTime(whiteTime);
+    document.getElementById('blackTime').textContent = formatTime(blackTime);
+}
+
+function updateTimerHighlights() {
+    const whiteTimer = document.querySelector('.white-timer');
+    const blackTimer = document.querySelector('.black-timer');
+    
+    whiteTimer.classList.toggle('active', currentPlayer === 'white');
+    blackTimer.classList.toggle('active', currentPlayer === 'black');
+}
+
+function checkLowTime(player, timeRemaining) {
+    const timerElement = player === 'white' ? 
+        document.querySelector('.white-timer') : 
+        document.querySelector('.black-timer');
+    
+    timerElement.classList.toggle('low-time', timeRemaining <= 30);
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function pauseGame() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        document.getElementById('pauseBtn').textContent = '▶️ Resume';
+        gameActive = false;
+    } else {
+        startTimer(whiteTime, increment);
+        document.getElementById('pauseBtn').textContent = '⏸️ Pause';
+        gameActive = true;
+    }
+}
+
+function resetGame() {
+    if (confirm('Start a new game? This will reset the current game.')) {
+        location.reload();
+    }
+}
+
+/* ===== Game Status ===== */
+function updateGameStatus() {
+    const statusElement = document.getElementById('gameStatus');
+    statusElement.textContent = `${currentPlayer === 'white' ? '♔ White' : '♛ Black'} to move`;
+}
+
+function endGame(message) {
+    gameActive = false;
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    document.getElementById('gameStatus').textContent = message;
+    alert(message);
+}
+
+/* ===== Move History ===== */
+function updateMoveHistory() {
+    const historyElement = document.getElementById('moveHistory');
+    historyElement.innerHTML = '';
+    
+    if (moveHistory.length === 0) {
+        historyElement.innerHTML = '<div class="no-moves">Game will begin once you make your first move</div>';
+        return;
+    }
+    
+    moveHistory.forEach((move, index) => {
+        const moveElement = document.createElement('div');
+        moveElement.className = `move-entry ${move.player}-move`;
+        
+        moveElement.innerHTML = `
+            <span class="move-text">${index + 1}. ${move.moveText}</span>
+            <span class="move-time">(${formatTime(move.timeSpent)})</span>
+        `;
+        
+        historyElement.appendChild(moveElement);
+    });
+    
+    historyElement.scrollTop = historyElement.scrollHeight;
+}
+
+/* ===== Audio System ===== */
+function initAudioSystem() {
+    // Create audio context for web audio effects
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+        console.log('Web Audio API not supported');
+    }
+    
+    // Initialize background music
+    backgroundMusic = new Audio('audio/background-music.mp3');
+    backgroundMusic.loop = true;
+    backgroundMusic.volume = 0.4;
+    
+    // Audio controls
+    const musicToggle = document.getElementById('musicToggle');
+    const musicVolume = document.getElementById('musicVolume');
+    const effectsToggle = document.getElementById('effectsToggle');
+    const masterVolume = document.getElementById('masterVolume');
+    
+    musicToggle.addEventListener('click', () => {
+        if (backgroundMusic.paused) {
+            backgroundMusic.play().catch(e => console.log('Music play failed:', e));
+            musicToggle.textContent = '⏸️ Pause';
+            musicToggle.classList.remove('paused');
+        } else {
+            backgroundMusic.pause();
+            musicToggle.textContent = '▶️ Play';
+            musicToggle.classList.add('paused');
+        }
+    });
+    
+    musicVolume.addEventListener('input', () => {
+        backgroundMusic.volume = musicVolume.value / 100 * (masterVolume.value / 100);
+    });
+    
+    effectsToggle.addEventListener('click', () => {
+        effectsMuted = !effectsMuted;
+        effectsToggle.textContent = effectsMuted ? '🔇 Off' : '🔊 On';
+        effectsToggle.classList.toggle('muted', effectsMuted);
+    });
+    
+    masterVolume.addEventListener('input', () => {
+        const masterLevel = masterVolume.value / 100;
+        backgroundMusic.volume = (musicVolume.value / 100) * masterLevel;
+    });
+}
+
+function playMoveSound() {
+    if (effectsMuted || !audioContext) return;
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (e) {
+        console.log('Could not play move sound:', e);
+    }
+}
+
+function playCaptureSound() {
+    if (effectsMuted || !audioContext) return;
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (e) {
+        console.log('Could not play capture sound:', e);
+    }
+}
+
+/* ===== Game Initialization ===== */
+function initGame() {
+    initBoard();
+    renderBoard();
+    initAudioSystem();
+    updateGameStatus();
+    updateTimerHighlights();
+    
+    // Control buttons
+    document.getElementById('pauseBtn').addEventListener('click', pauseGame);
+    document.getElementById('resetBtn').addEventListener('click', resetGame);
+    
+    gameActive = true;
+}
+
+/* ===== Event Listeners ===== */
+document.addEventListener('DOMContentLoaded', () => {
+    // Start game button
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('timeControlModal').style.display = 'flex';
+    });
+    
+    // Time control buttons
+    document.querySelectorAll('.time-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const timeSeconds = parseInt(button.dataset.time);
+            const incrementSeconds = parseInt(button.dataset.increment);
+            
+            document.getElementById('timeControlModal').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            initGame();
+            startTimer(timeSeconds, incrementSeconds);
+        });
+    });
+    
+    // Custom time control
+    document.getElementById('customTimeBtn').addEventListener('click', () => {
+        const minutes = parseInt(document.getElementById('customMinutes').value);
+        const incrementSeconds = parseInt(document.getElementById('customIncrement').value);
+        const timeSeconds = minutes * 60;
+        
+        document.getElementById('timeControlModal').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+        
+        initGame();
+        startTimer(timeSeconds, incrementSeconds);
+    });
 });
